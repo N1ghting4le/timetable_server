@@ -157,3 +157,5 @@ app.patch('/weekList/:weekId/days/:dayIndex/hometasks', (req, res) => {
 app.listen(process.env.PORT, () => {
     console.log(`Server is running`);
 });
+
+module.exports = app;
