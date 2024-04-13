@@ -4,7 +4,9 @@ const { Pool } = require('pg');
 
 const app = express();
 
-const table = 'public."weekList"';
+require('dotenv').config();
+
+const table = process.env.TABLE_NAME;
 
 const types = {
     noteType: 'note_type',
@@ -14,11 +16,7 @@ const types = {
 };
 
 const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'weekList',
-    password: 'Upstream228',
-    port: 5328
+    connectionString: process.env.POSTGRES_URL,
 });
 
 const error = (err, res) => {
@@ -156,9 +154,6 @@ app.patch('/weekList/:weekId/days/:dayIndex/hometasks', (req, res) => {
     manipulateQuery(query, res);
 });
 
-const port = 3001;
-const host = 'localhost';
-
-app.listen(port, host, () => {
-    console.log(`Server launched: http://${host}:${port}`);
+app.listen(process.env.PORT, () => {
+    console.log(`Server is running`);
 });
