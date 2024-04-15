@@ -1,17 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const { pool, types, table } = require('./db');
+require('dotenv').config();
 
 const app = express();
-
-require('dotenv').config();
 
 const error = (err, res) => {
     console.error('Error executing query', err.stack);
     res.status(500).send({message: 'Error executing query'});
 }
 
-const manipulateQuery = (query, res, ...params) => {
+const manipulateQuery = (query, res, params) => {
     pool.query(query, params, (err) => {
         if (err) error(err, res);
         
@@ -19,46 +18,76 @@ const manipulateQuery = (query, res, ...params) => {
     });
 }
 
-const createNote = (id, num) => `('${id}',$${num})::${types.noteType}`;
 const createDay = (date, day) => `('${date}','${day}','{}','{}')::${types.dayType}`;
-const createTeacher = (teacher) => {
-    const { firstName, middleName, lastName, photoLink } = teacher;
+const createObj = (obj, counter, type) => {
+    let str = '(';
 
-    return `('${firstName}','${middleName}','${lastName}','${photoLink}')::${types.teacherType}`;
+    Object.entries(obj).forEach(item => {
+        const [key, value] = item;
+
+        if (typeof value === 'object') {
+            str += `${createObj(value, counter, types[key + 'Type'])},`;
+        } else {
+            str += `$${counter[0]},`;
+            counter[0]++;
+        }
+    });
+    
+    return str.slice(0, str.length - 1) + `)::${type}`;
 }
-const createHometask = (hometask, num) => {
-    const { subject, type, teacher, id } = hometask;
 
-    return `('${subject}','${type}',$${num},${createTeacher(teacher)},'${id}')::${types.hometaskType}`;
+const createArr = (obj) => {
+    const arr = [];
+
+    Object.values(obj).forEach(item => {
+        if (typeof item === 'object') {
+            arr.push(...createArr(item));
+        } else {
+            arr.push(item);
+        }
+    });
+
+    return arr;
 }
 
-const addOrDeleteNote = (req, res, action) => {
-    const { weekId, dayIndex } = req.params;
-    const { id, text } = req.body;
-    const { dayType, noteType } = types;
-    const note = createNote(id, 1);
+const addOrDelete = (req, res, action, type) => {
+    const { weekId, dayIndex } = req.params; 
+    const { dayType } = types;
+    const counter = [1];
+    const obj = createObj(req.body, counter, types[type]);
 
     const query = `
         UPDATE ${table}
-        SET days[${dayIndex}] = (days[${dayIndex}].date, days[${dayIndex}].day, days[${dayIndex}].hometasks, array_${action}(days[${dayIndex}].notes, ${note})::${noteType}[])::${dayType}
-        WHERE id = ${weekId}
+        SET days[${dayIndex}] = (
+            days[${dayIndex}].date,
+            days[${dayIndex}].day,
+            ${type === 'noteType' ? `days[${dayIndex}].hometasks` : `array_${action}(days[${dayIndex}].hometasks, ${obj})::${types[type]}[]`},
+            ${type === 'noteType' ? `array_${action}(days[${dayIndex}].notes, ${obj})::${types[type]}[]` : `days[${dayIndex}].notes`}
+        )::${dayType} WHERE id = ${weekId}
     `;
 
-    manipulateQuery(query, res, text);
+    manipulateQuery(query, res, createArr(req.body));
 }
 
-const addOrDeleteHometask = (req, res, action) => {
-    const { weekId, dayIndex } = req.params;
-    const { dayType, hometaskType } = types;
-    const hometask = createHometask(req.body, 1);
+const update = (req, res, type) => {
+    const { weekId, dayIndex } = req.params; 
+    const [objToReplace, objToInsert] = req.body;
+    const { dayType } = types;
+    const counter = [1];
+    const oldObj = createObj(objToReplace, counter, types[type]);
+    const newObj = createObj(objToInsert, counter, types[type]);
 
     const query = `
         UPDATE ${table}
-        SET days[${dayIndex}] = (days[${dayIndex}].date, days[${dayIndex}].day, array_${action}(days[${dayIndex}].hometasks, ${hometask})::${hometaskType}[], days[${dayIndex}].notes)::${dayType}
-        WHERE id = ${weekId}
+        SET days[${dayIndex}] = (
+            days[${dayIndex}].date, 
+            days[${dayIndex}].day, 
+            ${type === 'noteType' ? `days[${dayIndex}].hometasks` : `array_replace(days[${dayIndex}].hometasks, ${oldObj}, ${newObj})::${types[type]}[]`}, 
+            ${type === 'noteType' ? `array_replace(days[${dayIndex}].notes, ${oldObj}, ${newObj})::${types[type]}[]` : `days[${dayIndex}].notes`}
+        )::${dayType} WHERE id = ${weekId}
     `;
 
-    manipulateQuery(query, res, req.body.text);
+    manipulateQuery(query, res, [...createArr(objToReplace), ...createArr(objToInsert)]);
 }
 
 app.use(cors());
@@ -75,10 +104,10 @@ app.post('/', (req, res) => {
     const query = `
         INSERT INTO ${table} (days) 
         VALUES 
-        (ARRAY[${str.slice(0, str.length - 1)}]::${types.dayType}[]);
+        (ARRAY[$1]::${types.dayType}[]);
     `;
 
-    manipulateQuery(query, res);
+    manipulateQuery(query, res, [str.slice(0, str.length - 1)]);
 });
 
 app.get('/weekList', (req, res) => {
@@ -92,53 +121,27 @@ app.get('/weekList', (req, res) => {
 });
 
 app.post('/weekList/:weekId/days/:dayIndex/notes', (req, res) => {
-    addOrDeleteNote(req, res, 'append');
+    addOrDelete(req, res, 'append', 'noteType');
 });
 
 app.delete('/weekList/:weekId/days/:dayIndex/notes', (req, res) => {
-    addOrDeleteNote(req, res, 'remove');
+    addOrDelete(req, res, 'remove', 'noteType');
 });
 
 app.patch('/weekList/:weekId/days/:dayIndex/notes', (req, res) => {
-    const { weekId, dayIndex } = req.params; 
-    const [noteToReplace, noteToInsert] = req.body;
-    const { noteType, dayType } = types;
-    const { id: oldId, text: oldText } = noteToReplace;
-    const { id: newId, text: newText } = noteToInsert;
-    const oldNote = createNote(oldId, 1);
-    const newNote = createNote(newId, 2);
-
-    const query = `
-        UPDATE ${table}
-        SET days[${dayIndex}] = (days[${dayIndex}].date, days[${dayIndex}].day, days[${dayIndex}].hometasks, array_replace(days[${dayIndex}].notes, ${oldNote}, ${newNote})::${noteType}[])::${dayType}
-        WHERE id = ${weekId}
-    `;
-
-    manipulateQuery(query, res, oldText, newText);
+    update(req, res, 'noteType');
 });
 
 app.post('/weekList/:weekId/days/:dayIndex/hometasks', (req, res) => {
-    addOrDeleteHometask(req, res, 'append');
+    addOrDelete(req, res, 'append', 'hometaskType');
 });
 
 app.delete('/weekList/:weekId/days/:dayIndex/hometasks', (req, res) => {
-    addOrDeleteHometask(req, res, 'remove');
+    addOrDelete(req, res, 'remove', 'hometaskType');
 });
 
 app.patch('/weekList/:weekId/days/:dayIndex/hometasks', (req, res) => {
-    const { weekId, dayIndex } = req.params; 
-    const [hometaskToReplace, hometskToInsert] = req.body;
-    const { hometaskType, dayType } = types;
-    const oldHometask = createHometask(hometaskToReplace, 1);
-    const newHometask = createHometask(hometskToInsert, 2);
-
-    const query = `
-        UPDATE ${table}
-        SET days[${dayIndex}] = (days[${dayIndex}].date, days[${dayIndex}].day, array_replace(days[${dayIndex}].hometasks, ${oldHometask}, ${newHometask})::${hometaskType}[], days[${dayIndex}].notes)::${dayType}
-        WHERE id = ${weekId}
-    `;
-
-    manipulateQuery(query, res, hometaskToReplace.text, hometskToInsert.text);
+    update(req, res, 'hometaskType');
 });
 
 app.listen(process.env.PORT, () => {
