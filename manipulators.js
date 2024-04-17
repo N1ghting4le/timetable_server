@@ -13,41 +13,41 @@ const manipulateQuery = (query, res, params) => {
 const addOrDelete = (req, res, action, type) => {
     const { weekId, dayIndex } = req.params; 
     const { dayType } = types;
-    const counter = [1];
+    const counter = [3];
     const obj = createObj(req.body, counter, types[type]);
 
     const query = `
         UPDATE ${table}
-        SET days[${dayIndex}] = (
-            days[${dayIndex}].date,
-            days[${dayIndex}].day,
-            ${type === 'hometaskType' ? `array_${action}(days[${dayIndex}].hometasks, ${obj})::${types[type]}[]` : `days[${dayIndex}].hometasks`},
-            ${type === 'noteType' ? `array_${action}(days[${dayIndex}].notes, ${obj})::${types[type]}[]` : `days[${dayIndex}].notes`}
-        )::${dayType} WHERE id = ${weekId}
+        SET days[$1] = (
+            days[$1].date,
+            days[$1].day,
+            ${type === 'hometaskType' ? `array_${action}(days[$1].hometasks, ${obj})::${types[type]}[]` : `days[$1].hometasks`},
+            ${type === 'noteType' ? `array_${action}(days[$1].notes, ${obj})::${types[type]}[]` : `days[$1].notes`}
+        )::${dayType} WHERE id = $2
     `;
 
-    manipulateQuery(query, res, createArr(req.body));
+    manipulateQuery(query, res, [dayIndex, weekId, ...createArr(req.body)]);
 }
 
 const update = (req, res, type) => {
     const { weekId, dayIndex } = req.params; 
     const [objToReplace, objToInsert] = req.body;
     const { dayType } = types;
-    const counter = [1];
+    const counter = [3];
     const oldObj = createObj(objToReplace, counter, types[type]);
     const newObj = createObj(objToInsert, counter, types[type]);
 
     const query = `
         UPDATE ${table}
-        SET days[${dayIndex}] = (
-            days[${dayIndex}].date, 
-            days[${dayIndex}].day, 
-            ${type === 'noteType' ? `days[${dayIndex}].hometasks` : `array_replace(days[${dayIndex}].hometasks, ${oldObj}, ${newObj})::${types[type]}[]`}, 
-            ${type === 'noteType' ? `array_replace(days[${dayIndex}].notes, ${oldObj}, ${newObj})::${types[type]}[]` : `days[${dayIndex}].notes`}
-        )::${dayType} WHERE id = ${weekId}
+        SET days[$1] = (
+            days[$1].date, 
+            days[$1].day, 
+            ${type === 'hometaskType' ? `array_replace(days[$1].hometasks, ${oldObj}, ${newObj})::${types[type]}[]` : `days[$1].hometasks`}, 
+            ${type === 'noteType' ? `array_replace(days[$1].notes, ${oldObj}, ${newObj})::${types[type]}[]` : `days[$1].notes`}
+        )::${dayType} WHERE id = $2
     `;
 
-    manipulateQuery(query, res, [...createArr(objToReplace), ...createArr(objToInsert)]);
+    manipulateQuery(query, res, [dayIndex, weekId, ...createArr(objToReplace), ...createArr(objToInsert)]);
 }
 
 module.exports = {
