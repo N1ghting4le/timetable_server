@@ -21,7 +21,7 @@ const addOrDelete = (req, res, action, type) => {
         SET days[${dayIndex}] = (
             days[${dayIndex}].date,
             days[${dayIndex}].day,
-            ${type === 'noteType' ? `days[${dayIndex}].hometasks` : `array_${action}(days[${dayIndex}].hometasks, ${obj})::${types[type]}[]`},
+            ${type === 'hometaskType' ? `array_${action}(days[${dayIndex}].hometasks, ${obj})::${types[type]}[]` : `days[${dayIndex}].hometasks`},
             ${type === 'noteType' ? `array_${action}(days[${dayIndex}].notes, ${obj})::${types[type]}[]` : `days[${dayIndex}].notes`}
         )::${dayType} WHERE id = ${weekId}
     `;
