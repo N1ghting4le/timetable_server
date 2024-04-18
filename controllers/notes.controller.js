@@ -1,18 +1,16 @@
-const { addOrDelete, update } = require('../manipulators');
-
-const type = 'noteType';
+const { addOrDeleteNote, updateNote } = require('../manipulators');
 
 const notesController = {
     addNote: (req, res) => {
-        addOrDelete(req, res, 'append', type);
+        addOrDeleteNote(req, res, 'append');
     },
 
     updateNote: (req, res) => {
-        update(req, res, type);
+        updateNote(req, res);
     },
 
     deleteNote: (req, res) => {
-        addOrDelete(req, res, 'remove', type);
+        addOrDeleteNote(req, res, 'remove');
     }
 };
 

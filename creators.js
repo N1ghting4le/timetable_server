@@ -1,39 +1,27 @@
+const format = require('pg-format');
 const { types } = require('./db');
 
-const createDay = (date, day, dayType) => `('${date}','${day}','{}','{}')::${dayType}`;
-const createObj = (obj, counter, type) => {
-    let str = '(';
+const createDay = (date, day, dayType) => format("('%s','%s','{}','{}')::%s,", date, day, dayType);
+
+const createArr = (obj, type) => {
+    const arr = [];
 
     Object.entries(obj).forEach(item => {
         const [key, value] = item;
 
         if (typeof value === 'object') {
-            str += `${createObj(value, counter, types[key + 'Type'])},`;
+            arr.push(...createArr(value, types[key + 'Type']));
         } else {
-            str += `$${counter[0]},`;
-            counter[0]++;
+            arr.push(value);
         }
     });
-    
-    return str.slice(0, str.length - 1) + `)::${type}`;
-}
 
-const createArr = (obj) => {
-    const arr = [];
-
-    Object.values(obj).forEach(item => {
-        if (typeof item === 'object') {
-            arr.push(...createArr(item));
-        } else {
-            arr.push(item);
-        }
-    });
+    arr.push(type);
 
     return arr;
 }
 
 module.exports = { 
-    createDay, 
-    createObj, 
+    createDay,
     createArr 
 };
