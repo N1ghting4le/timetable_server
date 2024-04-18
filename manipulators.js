@@ -1,5 +1,6 @@
+const format = require('pg-format');
 const { pool, types, table } = require('./db');
-const { createArr, createObj } = require('./creators');
+const { createArr } = require('./creators');
 const error = require('./error');
 
 const manipulateQuery = (query, res, params) => {
@@ -10,48 +11,60 @@ const manipulateQuery = (query, res, params) => {
     });
 }
 
-const addOrDelete = (req, res, action, type) => {
+const addOrDeleteNote = (req, res, action) => {
     const { weekId, dayIndex } = req.params; 
-    const { dayType } = types;
-    const counter = [3];
-    const obj = createObj(req.body, counter, types[type]);
+    const { dayType, noteType } = types;
 
-    const query = `
-        UPDATE ${table}
-        SET days[$1] = (
-            days[$1].date,
-            days[$1].day,
-            ${type === 'hometaskType' ? `array_${action}(days[$1].hometasks, ${obj})::${types[type]}[]` : `days[$1].hometasks`},
-            ${type === 'noteType' ? `array_${action}(days[$1].notes, ${obj})::${types[type]}[]` : `days[$1].notes`}
-        )::${dayType} WHERE id = $2
-    `;
+    const query = format(
+        "UPDATE %s SET days[$1] = (days[$1].date,days[$1].day,days[$1].hometasks,array_%s(days[$1].notes,('%s','%s')::%s)::%s[])::%s WHERE id = $2",
+        table, action, ...createArr(req.body, noteType), noteType, dayType
+    );
 
-    manipulateQuery(query, res, [dayIndex, weekId, ...createArr(req.body)]);
+    manipulateQuery(query, res, [dayIndex, weekId]);
 }
 
-const update = (req, res, type) => {
+const addOrDeleteHometask = (req, res, action) => {
     const { weekId, dayIndex } = req.params; 
-    const [objToReplace, objToInsert] = req.body;
-    const { dayType } = types;
-    const counter = [3];
-    const oldObj = createObj(objToReplace, counter, types[type]);
-    const newObj = createObj(objToInsert, counter, types[type]);
+    const { dayType, hometaskType } = types;
 
-    const query = `
-        UPDATE ${table}
-        SET days[$1] = (
-            days[$1].date, 
-            days[$1].day, 
-            ${type === 'hometaskType' ? `array_replace(days[$1].hometasks, ${oldObj}, ${newObj})::${types[type]}[]` : `days[$1].hometasks`}, 
-            ${type === 'noteType' ? `array_replace(days[$1].notes, ${oldObj}, ${newObj})::${types[type]}[]` : `days[$1].notes`}
-        )::${dayType} WHERE id = $2
-    `;
+    const query = format(
+        "UPDATE %s SET days[$1] = (days[$1].date,days[$1].day,array_%s(days[$1].hometasks,('%s','%s','%s',('%s','%s','%s','%s')::%s,'%s')::%s)::%s[],days[$1].notes)::%s WHERE id = $2",
+        table, action, ...createArr(req.body, hometaskType), hometaskType, dayType
+    );
 
-    manipulateQuery(query, res, [dayIndex, weekId, ...createArr(objToReplace), ...createArr(objToInsert)]);
+    manipulateQuery(query, res, [dayIndex, weekId]);
+}
+
+const updateNote = (req, res) => {
+    const { weekId, dayIndex } = req.params; 
+    const { dayType, noteType } = types;
+    const [toReplace, toInsert] = req.body;
+
+    const query = format(
+        "UPDATE %s SET days[$1] = (days[$1].date,days[$1].day,days[$1].hometasks,array_replace(days[$1].notes,('%s','%s')::%s,('%s','%s')::%s)::%s[])::%s WHERE id = $2",
+        table, ...createArr(toReplace, noteType), ...createArr(toInsert, noteType), noteType, dayType
+    );
+
+    manipulateQuery(query, res, [dayIndex, weekId]);
+}
+
+const updateHometask = (req, res) => {
+    const { weekId, dayIndex } = req.params; 
+    const { dayType, hometaskType } = types;
+    const [toReplace, toInsert] = req.body;
+
+    const query = format(
+        "UPDATE %s SET days[$1] = (days[$1].date,days[$1].day,array_replace(days[$1].hometasks,('%s','%s','%s',('%s','%s','%s','%s')::%s,'%s')::%s,('%s','%s','%s',('%s','%s','%s','%s')::%s,'%s')::%s)::%s[],days[$1].notes)::%s WHERE id = $2",
+        table, ...createArr(toReplace, hometaskType), ...createArr(toInsert, hometaskType), hometaskType, dayType
+    );
+
+    manipulateQuery(query, res, [dayIndex, weekId]);
 }
 
 module.exports = {
     manipulateQuery,
-    addOrDelete,
-    update
+    addOrDeleteNote,
+    addOrDeleteHometask,
+    updateNote,
+    updateHometask
 };
