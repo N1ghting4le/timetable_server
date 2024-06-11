@@ -11,9 +11,9 @@ const notesController = {
     },
 
     updateNote: (req, res) => {
-        const { date, index, ...note } = req.body;
+        const { date, oldNote, newNote } = req.body;
 
-        const query = format("UPDATE days SET notes[%s] = (%L)::note_type WHERE date = %L", index, Object.values(note), date);
+        const query = format("UPDATE days SET notes = array_replace(notes, (%L)::note_type, (%L)::note_type) WHERE date = %L", Object.values(oldNote), Object.values(newNote), date);
         
         manipulateQuery(query, res);
     },
