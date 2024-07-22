@@ -3,25 +3,23 @@ const { manipulateQuery } = require('../utils');
 
 const hometasksController = {
     addHometask: (req, res) => {
-        const { date, hometask } = req.body;
-        
-        const query = format("UPDATE days SET hometasks = array_append(hometasks, (%L)::hometask_type) WHERE date = %L", Object.values(hometask), date);
+        const query = format("INSERT INTO hometasks VALUES (%L)", Object.values(req.body));
         
         manipulateQuery(query, res);
     },
 
     updateHometask: (req, res) => {
-        const { date, oldHometask, newHometask } = req.body;
+        const { id, teacher, text } = req.body;
 
-        const query = format("UPDATE days SET hometasks = array_replace(hometasks, (%L)::hometask_type, (%L)::hometask_type) WHERE date = %L", Object.values(oldHometask), Object.values(newHometask), date);
+        const query = format("UPDATE hometasks SET teacher=%L, hometask_text=%L WHERE hometask_id=%L", teacher, text, id);
         
         manipulateQuery(query, res);
     },
 
     deleteHometask: (req, res) => {
-        const { date, hometask } = req.body;
+        const { id } = req.body;
 
-        const query = format("UPDATE days SET hometasks = array_remove(hometasks, (%L)::hometask_type) WHERE date = %L", Object.values(hometask), date);
+        const query = format("DELETE FROM hometasks WHERE hometask_id=%L", id);
         
         manipulateQuery(query, res);
     }

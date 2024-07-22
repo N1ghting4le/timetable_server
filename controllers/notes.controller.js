@@ -3,25 +3,23 @@ const { manipulateQuery } = require('../utils');
 
 const notesController = {
     addNote: (req, res) => {
-        const { date, ...note } = req.body;
-
-        const query = format("UPDATE days SET notes = array_append(notes, (%L)::note_type) WHERE date = %L", Object.values(note), date);
+        const query = format("INSERT INTO notes VALUES (%L)", Object.values(req.body));
         
         manipulateQuery(query, res);
     },
 
     updateNote: (req, res) => {
-        const { date, oldNote, newNote } = req.body;
+        const { id, text } = req.body;
 
-        const query = format("UPDATE days SET notes = array_replace(notes, (%L)::note_type, (%L)::note_type) WHERE date = %L", Object.values(oldNote), Object.values(newNote), date);
+        const query = format("UPDATE notes SET note_text=%L WHERE note_id=%L", text, id);
         
         manipulateQuery(query, res);
     },
 
     deleteNote: (req, res) => {
-        const { date, ...note } = req.body;
+        const { id } = req.body;
 
-        const query = format("UPDATE days SET notes = array_remove(notes, (%L)::note_type) WHERE date = %L", Object.values(note), date);
+        const query = format("DELETE FROM notes WHERE note_id=%L", id);
         
         manipulateQuery(query, res);
     }
