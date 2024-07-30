@@ -11,13 +11,15 @@ const daysController = {
     },
 
     getDays: (req, res) => {
-        const query = `
+        const groupNum = req.params.groupNum;
+
+        const query = format(`
             SELECT
                 to_json(date) AS date,
                 name,
                 week_num AS week,
-                COALESCE(json_agg(json_build_object('id', note_id, 'text', note_text)) FILTER (WHERE note_id IS NOT NULL), '[]') AS notes,
-                COALESCE(json_agg(json_build_object('id', hometask_id, 'text', hometask_text, 'subject', subject, 'type', type, 'teacher', teacher)) FILTER (WHERE hometask_id IS NOT NULL), '[]') AS hometasks
+                COALESCE(json_agg(json_build_object('id', note_id, 'text', note_text)) FILTER (WHERE note_id IS NOT NULL AND note_group_num=%L), '[]') AS notes,
+                COALESCE(json_agg(json_build_object('id', hometask_id, 'text', hometask_text, 'subject', subject, 'type', type, 'teacher', teacher)) FILTER (WHERE hometask_id IS NOT NULL AND hometask_group_num=%L), '[]') AS hometasks
             FROM
                 days
             LEFT JOIN
@@ -28,7 +30,7 @@ const daysController = {
                 date
             ORDER BY
                 CAST(date AS date) ASC;
-        `;
+        `, groupNum, groupNum);
 
         pool.query(query, (err, response) => {
             if (err) error(err, res);
