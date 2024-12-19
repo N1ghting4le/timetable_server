@@ -9,9 +9,9 @@ const hometasksController = {
     },
 
     updateHometask: (req, res) => {
-        const { id, teacher, text } = req.body;
+        const { id, teacherId, text } = req.body;
 
-        const query = format("UPDATE hometasks SET teacher=%L, hometask_text=%L WHERE hometask_id=%L", teacher, text, id);
+        const query = format("UPDATE hometasks SET teacher_id=%L, hometask_text=%L WHERE hometask_id=%L", teacherId, text, id);
         
         manipulateQuery(query, res);
     },

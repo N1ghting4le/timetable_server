@@ -19,7 +19,7 @@ const daysController = {
                 name,
                 week_num AS week,
                 COALESCE(json_agg(json_build_object('id', note_id, 'text', note_text)) FILTER (WHERE note_id IS NOT NULL AND note_group_num=%L), '[]') AS notes,
-                COALESCE(json_agg(json_build_object('id', hometask_id, 'text', hometask_text, 'subject', subject, 'type', type, 'teacher', teacher, 'subgroup', subgroup)) FILTER (WHERE hometask_id IS NOT NULL AND hometask_group_num=%L), '[]') AS hometasks
+                COALESCE(json_agg(json_build_object('id', hometask_id, 'text', hometask_text, 'subject', subject, 'type', type, 'teacherId', teacher_id, 'subgroup', subgroup)) FILTER (WHERE hometask_id IS NOT NULL AND hometask_group_num=%L), '[]') AS hometasks
             FROM
                 days
             LEFT JOIN
