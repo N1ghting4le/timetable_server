@@ -1,4 +1,3 @@
-const fs = require('fs');
 const format = require('pg-format');
 const pool = require('../db');
 const { manipulateQuery, error } = require('../utils');
@@ -13,10 +12,7 @@ const hometasksController = {
     addHometask: async (req, res) => {
         const query = format("INSERT INTO hometasks VALUES (%L)", createHometask(req.body));
 
-        if (!req.files[0].size) {
-            fs.unlinkSync(req.files[0].path);
-            return manipulateQuery(query, res);
-        }
+        if (!req.files[0].size) return manipulateQuery(query, res);
 
         const filesInfo = JSON.parse(req.body.filesInfo);
         const client = await pool.connect();
@@ -27,14 +23,11 @@ const hometasksController = {
 
             for (let i = 0; i < filesInfo.length; i++) {
                 const { id, title } = filesInfo[i];
-                const { path } = req.files[i];
-                const fileData = fs.readFileSync(path);
 
                 const fileQuery = format(
-                    "INSERT INTO files VALUES (%L)", [id, req.body.id, null, title, fileData]
+                    "INSERT INTO files VALUES (%L)", [id, req.body.id, null, title, req.files[i].buffer]
                 );
                 
-                fs.unlinkSync(path);
                 await client.query(fileQuery);
             }
 
@@ -56,10 +49,7 @@ const hometasksController = {
             teacherId, text, id
         );
 
-        if (!req.files[0].size) {
-            fs.unlinkSync(req.files[0].path);
-            return manipulateQuery(query, res);
-        }
+        if (!req.files[0].size) return manipulateQuery(query, res);
 
         const filesInfo = JSON.parse(req.body.filesInfo);
         const deletedFilesIds = JSON.parse(req.body.deletedFilesIds);
@@ -71,14 +61,11 @@ const hometasksController = {
 
             for (let i = 0; i < filesInfo.length; i++) {
                 const { id: fileId, title } = filesInfo[i];
-                const { path } = req.files[i];
-                const fileData = fs.readFileSync(path);
 
                 const fileQuery = format(
-                    "INSERT INTO files VALUES (%L)", [fileId, id, null, title, fileData]
+                    "INSERT INTO files VALUES (%L)", [fileId, id, null, title, req.files[i].buffer]
                 );
                 
-                fs.unlinkSync(path);
                 await client.query(fileQuery);
             }
 
