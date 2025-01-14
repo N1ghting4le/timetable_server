@@ -29,7 +29,7 @@ app.get('/download/:fileId', async (req, res) => {
         const file = result.rows[0];
 
         res.set({
-            'Content-Disposition': `attachment; filename="${file.title}"`,
+            'Content-Disposition': `attachment; filename="${encodeURIComponent(file.title)}"`,
             'Content-Type': 'application/octet-stream',
             'Content-Length': file.content.length
         });
