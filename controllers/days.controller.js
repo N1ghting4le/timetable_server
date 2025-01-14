@@ -5,7 +5,12 @@ const { manipulateQuery, error} = require('../utils');
 
 const daysController = {
     setDays: (req, res) => {
-        const query = format("TRUNCATE TABLE days CASCADE; TRUNCATE TABLE notes; TRUNCATE TABLE hometasks; INSERT INTO days VALUES %L", req.body.map(item => Object.values(item)));
+        const query = format(`
+            TRUNCATE TABLE days CASCADE;
+            TRUNCATE TABLE notes CASCADE;
+            TRUNCATE TABLE hometasks CASCADE;
+            INSERT INTO days VALUES %L
+        `, req.body.map(item => Object.values(item)));
         
         manipulateQuery(query, res);
     },
@@ -18,16 +23,50 @@ const daysController = {
                 to_json(date) AS date,
                 name,
                 week_num AS week,
-                COALESCE(json_agg(json_build_object('id', note_id, 'text', note_text)) FILTER (WHERE note_id IS NOT NULL AND note_group_num=%L), '[]') AS notes,
-                COALESCE(json_agg(json_build_object('id', hometask_id, 'text', hometask_text, 'subject', subject, 'type', type, 'teacherId', teacher_id, 'subgroup', subgroup)) FILTER (WHERE hometask_id IS NOT NULL AND hometask_group_num=%L), '[]') AS hometasks
+                COALESCE(
+                    json_agg(
+                        json_build_object(
+                            'id', note_id,
+                            'text', note_text,
+                            'files', (
+                                SELECT COALESCE(
+                                    json_agg(json_build_object('id', file_id, 'title', title)),
+                                    '[]'
+                                )
+                                FROM files
+                                WHERE files.note_id = notes.note_id
+                            )
+                        )
+                    ) FILTER (WHERE note_group_num = %L), '[]'
+                ) AS notes,
+                COALESCE(
+                    json_agg(
+                        json_build_object(
+                            'id', hometask_id,
+                            'text', hometask_text,
+                            'subject', subject,
+                            'type', type,
+                            'teacherId', teacher_id,
+                            'subgroup', subgroup,
+                            'files', (
+                                SELECT COALESCE(
+                                    json_agg(json_build_object('id', file_id, 'title', title)),
+                                    '[]'
+                                )
+                                FROM files
+                                WHERE files.hometask_id = hometasks.hometask_id
+                            )
+                        )
+                    ) FILTER (WHERE hometask_group_num = %L), '[]'
+                ) AS hometasks
             FROM
                 days
             LEFT JOIN
                 notes ON days.date = notes.day_date
             LEFT JOIN
-	            hometasks ON days.date = hometasks.day_date
+                hometasks ON days.date = hometasks.day_date
             GROUP BY
-                date
+                date, name, week_num
             ORDER BY
                 CAST(date AS date) ASC;
         `, groupNum, groupNum);
