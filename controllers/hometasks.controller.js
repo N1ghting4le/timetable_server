@@ -14,23 +14,19 @@ const hometasksController = {
 
         if (!req.files[0].size) return manipulateQuery(query, res);
 
-        const filesInfo = JSON.parse(req.body.filesInfo);
+        const filesArray = JSON.parse(req.body.filesInfo).map((info, i) => {
+            const { id, title } = info;
+
+            return [id, req.body.id, null, title, req.files[i].buffer];
+        });
+        
+        const fileQuery = format("INSERT INTO files VALUES %L", filesArray);
         const client = await pool.connect();
 
         try {
             await client.query("BEGIN");
             await client.query(query);
-
-            for (let i = 0; i < filesInfo.length; i++) {
-                const { id, title } = filesInfo[i];
-
-                const fileQuery = format(
-                    "INSERT INTO files VALUES (%L)", [id, req.body.id, null, title, req.files[i].buffer]
-                );
-                
-                await client.query(fileQuery);
-            }
-
+            await client.query(fileQuery);
             await client.query("COMMIT");
             res.send({ message: "Success" });
         } catch (e) {
@@ -51,27 +47,22 @@ const hometasksController = {
 
         if (!req.files[0].size) return manipulateQuery(query, res);
 
-        const filesInfo = JSON.parse(req.body.filesInfo);
         const deletedFilesIds = JSON.parse(req.body.deletedFilesIds);
+        const filesArray = JSON.parse(req.body.filesInfo).map((info, i) => {
+            const { id: fileId, title } = info;
+
+            return [fileId, id, null, title, req.files[i].buffer];
+        });
+        
+        const insertFileQuery = format("INSERT INTO files VALUES %L", filesArray);
+        const deleteFileQuery = format("DELETE FROM files WHERE file_id IN (%L)", deletedFilesIds);
         const client = await pool.connect();
 
         try {
             await client.query("BEGIN");
             await client.query(query);
-
-            for (let i = 0; i < filesInfo.length; i++) {
-                const { id: fileId, title } = filesInfo[i];
-
-                const fileQuery = format(
-                    "INSERT INTO files VALUES (%L)", [fileId, id, null, title, req.files[i].buffer]
-                );
-                
-                await client.query(fileQuery);
-            }
-
-            const fileQuery = format("DELETE FROM files WHERE file_id IN (%L)", deletedFilesIds);
-
-            await client.query(fileQuery);
+            await client.query(insertFileQuery);
+            await client.query(deleteFileQuery);
             await client.query("COMMIT");
             res.send({ message: "Success" });
         } catch (e) {
