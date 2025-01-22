@@ -12,7 +12,7 @@ const hometasksController = {
     addHometask: async (req, res) => {
         const query = format("INSERT INTO hometasks VALUES (%L)", createHometask(req.body));
 
-        if (!req.files[0].size) return manipulateQuery(query, res);
+        if (!req.files.length) return manipulateQuery(query, res);
 
         const filesArray = JSON.parse(req.body.filesInfo).map((info, i) => {
             const { id, title } = info;
@@ -45,7 +45,7 @@ const hometasksController = {
             teacherId, text, id
         );
 
-        if (!req.files[0].size) return manipulateQuery(query, res);
+        if (!req.files.length) return manipulateQuery(query, res);
 
         const deletedFilesIds = JSON.parse(req.body.deletedFilesIds);
         const filesArray = JSON.parse(req.body.filesInfo).map((info, i) => {
