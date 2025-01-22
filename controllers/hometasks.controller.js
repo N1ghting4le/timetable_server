@@ -55,14 +55,18 @@ const hometasksController = {
         });
         
         const insertFileQuery = format("INSERT INTO files VALUES %L", filesArray);
-        const deleteFileQuery = format("DELETE FROM files WHERE file_id IN (%L)", deletedFilesIds);
         const client = await pool.connect();
 
         try {
             await client.query("BEGIN");
             await client.query(query);
             await client.query(insertFileQuery);
-            await client.query(deleteFileQuery);
+
+            if (deletedFilesIds.length) {
+                const deleteFileQuery = format("DELETE FROM files WHERE file_id IN (%L)", deletedFilesIds);
+                await client.query(deleteFileQuery);
+            }
+
             await client.query("COMMIT");
             res.send({ message: "Success" });
         } catch (e) {
