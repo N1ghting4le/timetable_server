@@ -11,8 +11,6 @@ const createNote = (body) => {
 const notesController = {
     addNote: async (req, res) => {
         const query = format("INSERT INTO notes VALUES (%L)", createNote(req.body));
-        
-        if (!req.files.length) return manipulateQuery(query, res);
 
         const filesArray = JSON.parse(req.body.filesInfo).map((info, i) => {
             const { id, title } = info;
@@ -20,6 +18,8 @@ const notesController = {
             return [id, null, req.body.id, title, req.files[i].buffer];
         });
         
+        if (!filesArray.length) return manipulateQuery(query, res);
+
         const fileQuery = format("INSERT INTO files VALUES %L", filesArray);
         const client = await pool.connect();
 
@@ -39,31 +39,31 @@ const notesController = {
 
     updateNote: async (req, res) => {
         const { id, text } = req.body;
-
         const query = format("UPDATE notes SET note_text=%L WHERE note_id=%L", text, id);
-        
-        if (!req.files.length) return manipulateQuery(query, res);
-
         const deletedFilesIds = JSON.parse(req.body.deletedFilesIds);
+
         const filesArray = JSON.parse(req.body.filesInfo).map((info, i) => {
             const { id: fileId, title } = info;
 
             return [fileId, null, id, title, req.files[i].buffer];
         });
         
-        const insertFileQuery = format("INSERT INTO files VALUES %L", filesArray);
         const client = await pool.connect();
 
         try {
             await client.query("BEGIN");
             await client.query(query);
-            await client.query(insertFileQuery);
+
+            if (filesArray.length) {
+                const insertFileQuery = format("INSERT INTO files VALUES %L", filesArray);
+                await client.query(insertFileQuery);
+            }
             
             if (deletedFilesIds.length) {
                 const deleteFileQuery = format("DELETE FROM files WHERE file_id IN (%L)", deletedFilesIds);
                 await client.query(deleteFileQuery);
             }
-
+            
             await client.query("COMMIT");
             res.send({ message: "Success" });
         } catch (e) {
